@@ -18,8 +18,7 @@ WORKDIR /app
 # Copia o JAR construído com dependências
 COPY --from=builder /app/target/mini-ml-platform-1.0.0-jar-with-dependencies.jar .
 
-COPY src/main/resources/data/iris.csv ./data/iris.csv
-COPY src/main/resources/data/schema.json ./data/schema.json
+COPY src/main/resources/data/ ./data/
 
 # Define variáveis de ambiente default (podem ser sobrescritas via docker-compose ou CLI)
 ENV BUCKET_NAME=model \
@@ -28,4 +27,4 @@ ENV BUCKET_NAME=model \
     MINIO_SECRET_KEY=admin123
 
 # Comando padrão (pode ser sobrescrito com docker-compose ou linha de comando)
-ENTRYPOINT ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar", "data/iris.csv", "data/schema.json", "rose"]
+ENTRYPOINT ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar"]

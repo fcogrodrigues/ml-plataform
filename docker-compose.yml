@@ -35,21 +35,6 @@ services:
       "
     networks:
       - mlnet
-  ml-trainer:
-    build:
-      context: .
-      dockerfile: Dockerfile.trainer
-    container_name: ml-trainer
-    depends_on:
-      - minio-client
-    environment:
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: admin
-      MINIO_SECRET_KEY: admin123
-      BUCKET_NAME: model
-    networks:
-      - mlnet
-    command: ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar", "data/iris.csv"]
 
   ml-api:
     build:
@@ -57,8 +42,6 @@ services:
       dockerfile: Dockerfile.api
     container_name: ml-api
     depends_on:
-      - ml-trainer
-      - minio
       - minio-client
     environment:
       MINIO_ENDPOINT: http://minio:9000
@@ -67,6 +50,19 @@ services:
       BUCKET_NAME: model
     ports:
       - "8080:8080"
+    networks:
+      - mlnet
+
+  ml-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile.trainer
+    container_name: ml-trainer
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: admin123
+      BUCKET_NAME: model
     networks:
       - mlnet
 
