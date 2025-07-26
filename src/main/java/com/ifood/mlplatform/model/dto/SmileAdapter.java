@@ -9,6 +9,7 @@ import smile.data.type.StructType;
 import smile.regression.Regression;
 
 import java.io.Serializable;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Getter
@@ -19,7 +20,7 @@ public class SmileAdapter implements Predictable, Serializable {
     private final Serializable model;
     private final StructType schema;
 
-    public Object predict(Tuple tuple) {
+    private Object predict(Tuple tuple) {
         if (model instanceof Classifier) {
             @SuppressWarnings("unchecked")
             Classifier<Tuple> classifier = (Classifier<Tuple>) model;
@@ -35,11 +36,27 @@ public class SmileAdapter implements Predictable, Serializable {
     }
 
     @Override
-    public Object predict(double[] features) {
-        if (schema == null) {
-            throw new IllegalStateException("Schema is not available to create Tuple from features.");
+    public Object predict(Map<String, Object> features) {
+        double[] featureArray = new double[schema.length()];
+
+        for (int i = 0; i < schema.length(); i++) {
+            String name = schema.field(i).name;
+            Object value = features.get(name);
+
+            if (value == null) {
+                throw new IllegalArgumentException("Missing feature: " + name);
+            }
+
+            try {
+                featureArray[i] = (value instanceof Number)
+                        ? ((Number) value).doubleValue()
+                        : Double.parseDouble(value.toString());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid value for feature: " + name, e);
+            }
         }
-        Tuple tuple = Tuple.of(features, schema);
+
+        Tuple tuple = Tuple.of(featureArray, schema);
         return predict(tuple);
     }
 }

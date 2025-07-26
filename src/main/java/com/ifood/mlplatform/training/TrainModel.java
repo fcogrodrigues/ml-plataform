@@ -11,9 +11,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
+import java.util.Arrays;
 
 import org.apache.commons.csv.CSVFormat;
 
@@ -26,19 +27,24 @@ import lombok.extern.slf4j.Slf4j;
 public class TrainModel {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 1) {
-            log.info("Usage: java -jar mini-ml-platform-1.0.0-jar-with-dependencies.jar <path-to-csv>");
+        if (args.length < 2) {
+            log.info("Usage: java -jar mini-ml-platform.jar <path-to-csv> <path-to-schema.json>");
             System.exit(1);
         }
 
         String csvPath = args[0];
-        Path path = Path.of(csvPath);
-        if (!Files.exists(path)) {
-            throw new IllegalStateException("❌ File data/iris.csv not found.");
-        }
-        log.info("Starting training job...");
-        log.info("Reading data from={}", csvPath);
+        String schemaPathStr = args[1];
+        Path csvFile = Path.of(csvPath);
+        Path schemaPath = Path.of(schemaPathStr);
 
+        if (!Files.exists(csvFile)) {
+            throw new IllegalStateException("❌ CSV file not found: " + csvFile);
+        }
+        if (!Files.exists(schemaPath)) {
+            throw new IllegalStateException("❌ Schema file not found: " + schemaPath);
+        }
+
+        log.info("📥 Reading CSV from: {}", csvFile);
         CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
                 .setHeader()
                 .setSkipHeaderRecord(false)
@@ -46,35 +52,29 @@ public class TrainModel {
 
         DataFrame data = Read.csv(csvPath, csvFormat);
 
-        log.info("Columns found: ");
-        for (String name : data.names()) {
-            log.info(" - " + name);
-        }
+        log.info("🧾 Columns found: {}", Arrays.toString(data.names()));
 
         String labelColumn = "class";
-        String[] species = data.stringVector(labelColumn).distinct().toArray(new String[0]);
-        Map<String, Integer> speciesMap = new HashMap<>();
-        for (int i = 0; i < species.length; i++) {
-            speciesMap.put(species[i], i);
+        String[] labelValues = data.stringVector(labelColumn).toArray();
+        String[] classes = Arrays.stream(labelValues).distinct().toArray(String[]::new);
+
+        Map<String, Integer> classToIndex = new HashMap<>();
+        for (int i = 0; i < classes.length; i++) {
+            classToIndex.put(classes[i], i);
         }
 
-        String[] labelValues = data.column(labelColumn).toStringArray();
-        int[] labels = new int[labelValues.length];
-        for (int i = 0; i < labelValues.length; i++) {
-            labels[i] = speciesMap.get(labelValues[i]);
-        }
+        int[] labelIndexes = Arrays.stream(labelValues)
+                .mapToInt(name -> classToIndex.get(name))
+                .toArray();
 
-        data = data.drop(labelColumn).merge(IntVector.of(labelColumn, labels));
-
-        log.info("Label mapping applied={}", speciesMap);
+        // Agora sobrescreva a coluna original com valores inteiros
+        data = data.drop(labelColumn).merge(IntVector.of(labelColumn, labelIndexes));
+        log.info("✅ Label mapping applied: {}", classToIndex);
 
         Formula formula = Formula.lhs(labelColumn);
-
-        log.info("Starting model training with label column={}", labelColumn);
-
+        log.info("🧠 Training RandomForest model...");
         RandomForest model = RandomForest.fit(formula, data);
-
-        log.info("Model training completed. Saving model...");
+        log.info("✅ Training complete.");
 
         // Serializar modelo
         ByteArrayOutputStream modelBytes = new ByteArrayOutputStream();
@@ -82,24 +82,20 @@ public class TrainModel {
             oos.writeObject(model);
         }
 
-        // Serializar schema
-        ByteArrayOutputStream schemaBytes = new ByteArrayOutputStream();
-        try (ObjectOutputStream oos = new ObjectOutputStream(schemaBytes)) {
-            oos.writeObject(data.schema());
-        }
-
         String bucketName = System.getenv().getOrDefault("BUCKET_NAME", "model");
         String endpoint = System.getenv().getOrDefault("MINIO_ENDPOINT", "http://localhost:9000");
         String accessKey = System.getenv().getOrDefault("MINIO_ACCESS_KEY", "admin");
         String secretKey = System.getenv().getOrDefault("MINIO_SECRET_KEY", "admin123");
 
-        // Cria o cliente S3 apontando para MinIO
+        // Upload model and schema to MinIO
         MinioClient minioClient = MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
                 .build();
 
-        // Upload do modelo
+        log.info("☁️ Uploading artifacts to bucket: {}", bucketName);                
+
+        // Upload model
         minioClient.putObject(
             PutObjectArgs.builder()
                 .bucket(bucketName)
@@ -109,16 +105,17 @@ public class TrainModel {
                 .build()
         );
 
-        // Upload do schema
+        // Upload schema
         minioClient.putObject(
             PutObjectArgs.builder()
                 .bucket(bucketName)
-                .object("schema.bin")
-                .stream(new ByteArrayInputStream(schemaBytes.toByteArray()), schemaBytes.size(), -1)
-                .contentType("application/octet-stream")
+                .object("schema.json")
+                .stream(Files.newInputStream(schemaPath), Files.size(schemaPath), -1)
+                .contentType("application/json")
                 .build()
         );
-        log.info("✅ Model and schema uploaded to bucket={}", bucketName);
-        
+       
+        log.info("🎉 Training and upload process completed successfully.");
     }
+
 }

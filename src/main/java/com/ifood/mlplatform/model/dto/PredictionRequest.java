@@ -1,9 +1,11 @@
 package com.ifood.mlplatform.model.dto;
 
-import lombok.Data;
-import java.util.List;
+import java.util.Map;
 
-@Data
+import lombok.Getter;
+
+@Getter
 public class PredictionRequest {
-    private List<Double> features;
+    private String modelId;
+    private Map<String, Object> features;
 }

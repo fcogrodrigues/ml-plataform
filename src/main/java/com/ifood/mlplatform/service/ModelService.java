@@ -1,28 +1,33 @@
 package com.ifood.mlplatform.service;
 
+import com.ifood.mlplatform.util.MetadataConverter;
+
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import smile.data.type.StructType;
 
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ifood.mlplatform.model.Predictable;
 import com.ifood.mlplatform.model.dto.SmileAdapter;
+import com.ifood.mlplatform.model.metadata.ModelMetadata;
 
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
 public class ModelService {
 
+    private final StorageService storageService;
+
     private Predictable model;
     private StructType schema;
-
-    // Assuming S3StorageService is a service to interact with S3 storage
-    private final StorageService storageService;
+    private ModelMetadata modelMetadata;
     
     public ModelService(StorageService storageService) {
         this.storageService = storageService;
@@ -30,23 +35,24 @@ public class ModelService {
 
     @PostConstruct
     public void init() {
-        log.info("🔧 Loading from model and schema...");
+        log.info("🔧 Loading model and schema from storage...");
         try (
             InputStream modelStream = storageService.download("model.bin");
-            ObjectInputStream modelOis = new ObjectInputStream(modelStream);
-            
-            InputStream schemaStream = storageService.download("schema.bin");
-            ObjectInputStream schemaOis = new ObjectInputStream(schemaStream)
+            InputStream schemaStream = storageService.download("schema.json");
         ) {
+            ObjectInputStream modelOis = new ObjectInputStream(modelStream);
             Object modelObj = modelOis.readObject();
             if (!(modelObj instanceof Serializable)) {
                 throw new IllegalStateException("The loaded model is not Serializable.");
             }
 
-            StructType schemaObj = (StructType) schemaOis.readObject();
-            this.schema = schemaObj;
+            ObjectMapper mapper = new ObjectMapper();
 
-            this.model = new SmileAdapter((Serializable) modelObj, schemaObj);
+            this.modelMetadata = mapper.readValue(schemaStream, ModelMetadata.class);
+            log.info("✅ schema.json loaded with {} features", modelMetadata.features.size());
+
+            this.schema = MetadataConverter.toStructType(modelMetadata);
+            this.model = new SmileAdapter((Serializable) modelObj, schema);
 
             log.info("✅ Model and Schema loaded successfully from Storage");
         } catch (Exception e) {
@@ -55,10 +61,39 @@ public class ModelService {
         }
     }
 
-    public Object predict(List<Double> features) {
-        double[] featureArray = features.stream().mapToDouble(Double::doubleValue).toArray();
-        Object prediction = model.predict(featureArray);
-        log.info("✅ Prediction completed for features {} -> {}", features, prediction);
-        return prediction;
+    public Object predict(Map<String, Object> featureMap) {
+        List<ModelMetadata.Feature> featureDefs = modelMetadata.features;
+        double[] featureArray = new double[featureDefs.size()];
+
+        for (int i = 0; i < featureDefs.size(); i++) {
+            String featureName = featureDefs.get(i).name;
+            Object value = featureMap.get(featureName);
+
+            if (value == null) {
+                throw new IllegalArgumentException("Missing feature: " + featureName);
+            }
+
+            try {
+                featureArray[i] = (value instanceof Number)
+                        ? ((Number) value).doubleValue()
+                        : Double.parseDouble(value.toString());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid value for feature " + featureName + ": " + value, e);
+            }
+        }
+
+        Object rawPrediction = model.predict(featureMap);
+
+        // Traduz o índice para classe nominal
+        if (rawPrediction instanceof Integer && modelMetadata.label != null && modelMetadata.label.classes != null) {
+            int index = (Integer) rawPrediction;
+            List<String> classes = modelMetadata.label.classes;
+            if (index >= 0 && index < classes.size()) {
+                return classes.get(index);
+            }
+        }
+
+        return rawPrediction;
     }
+
 }

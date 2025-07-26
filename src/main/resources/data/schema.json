@@ -1,0 +1,16 @@
+{
+  "model_type": "RandomForest",
+  "framework": "SMILE",
+  "features": [
+    { "name": "sepal_length", "type": "double" },
+    { "name": "sepal_width", "type": "double" },
+    { "name": "petal_length", "type": "double" },
+    { "name": "petal_width", "type": "double" },
+    { "name": "class", "type": "integer" }
+  ],
+  "label": {
+    "name": "class",
+    "type": "integer",
+    "classes": ["setosa", "versicolor", "virginica"]
+  }
+}
