@@ -16,7 +16,7 @@ public class PredictionController {
 
     @PostMapping
     public ResponseEntity<PredictionResponse> predict(@RequestBody PredictionRequest request) {
-        Object prediction = modelService.predict(request.getFeatures());
+        Object prediction = modelService.predict(request.getModelId(), request.getFeatures());
         return ResponseEntity.ok(new PredictionResponse(prediction));
     }
 

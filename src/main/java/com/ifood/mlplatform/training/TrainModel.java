@@ -28,12 +28,13 @@ public class TrainModel {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
-            log.info("Usage: java -jar mini-ml-platform.jar <path-to-csv> <path-to-schema.json>");
+            log.info("Usage: java -jar mini-ml-platform.jar <path-to-csv> <path-to-schema.json> <model-id>");
             System.exit(1);
         }
 
         String csvPath = args[0];
         String schemaPathStr = args[1];
+        String modelId = args[2]; 
         Path csvFile = Path.of(csvPath);
         Path schemaPath = Path.of(schemaPathStr);
 
@@ -93,13 +94,13 @@ public class TrainModel {
                 .credentials(accessKey, secretKey)
                 .build();
 
-        log.info("☁️ Uploading artifacts to bucket: {}", bucketName);                
+        log.info("☁️ Uploading artifacts to bucket: {}/{}", bucketName, modelId);                
 
         // Upload model
         minioClient.putObject(
             PutObjectArgs.builder()
                 .bucket(bucketName)
-                .object("model.bin")
+                .object(modelId + "/model.bin")
                 .stream(new ByteArrayInputStream(modelBytes.toByteArray()), modelBytes.size(), -1)
                 .contentType("application/octet-stream")
                 .build()
@@ -109,7 +110,7 @@ public class TrainModel {
         minioClient.putObject(
             PutObjectArgs.builder()
                 .bucket(bucketName)
-                .object("schema.json")
+                .object(modelId + "/schema.json")
                 .stream(Files.newInputStream(schemaPath), Files.size(schemaPath), -1)
                 .contentType("application/json")
                 .build()

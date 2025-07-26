@@ -28,4 +28,4 @@ ENV BUCKET_NAME=model \
     MINIO_SECRET_KEY=admin123
 
 # Comando padrão (pode ser sobrescrito com docker-compose ou linha de comando)
-ENTRYPOINT ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar", "data/iris.csv", "data/schema.json"]
+ENTRYPOINT ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar", "data/iris.csv", "data/schema.json", "rose"]

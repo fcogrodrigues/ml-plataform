@@ -3,6 +3,7 @@ package com.ifood.mlplatform.service;
 import com.ifood.mlplatform.util.MetadataConverter;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import smile.data.type.StructType;
 
@@ -18,27 +19,29 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ModelService {
 
-    private final StorageService storageService;
+    private final StorageService storage;
+
+    private final Map<String, LoadedModel> modelCache = new ConcurrentHashMap<>();
+
+    private record LoadedModel(Predictable model, StructType schema, ModelMetadata metadata) {}
 
     private Predictable model;
     private StructType schema;
     private ModelMetadata modelMetadata;
     
-    public ModelService(StorageService storageService) {
-        this.storageService = storageService;
-    }
+    private LoadedModel loadModel(String modelId) {
+        log.info("📦 Loading model with ID: {}", modelId);
 
-    @PostConstruct
-    public void init() {
-        log.info("🔧 Loading model and schema from storage...");
         try (
-            InputStream modelStream = storageService.download("model.bin");
-            InputStream schemaStream = storageService.download("schema.json");
+            InputStream modelStream = storage.download(modelId + "/model.bin");
+            InputStream schemaStream = storage.download(modelId + "/schema.json");
         ) {
             ObjectInputStream modelOis = new ObjectInputStream(modelStream);
             Object modelObj = modelOis.readObject();
@@ -47,27 +50,31 @@ public class ModelService {
             }
 
             ObjectMapper mapper = new ObjectMapper();
+            ModelMetadata metadata = mapper.readValue(schemaStream, ModelMetadata.class);
+            StructType schema = MetadataConverter.toStructType(metadata);
+            Predictable model = new SmileAdapter((Serializable) modelObj, schema);
 
-            this.modelMetadata = mapper.readValue(schemaStream, ModelMetadata.class);
-            log.info("✅ schema.json loaded with {} features", modelMetadata.features.size());
+            log.info("✅ Loaded model: {}, features: {}", modelId, metadata.features.size());
 
-            this.schema = MetadataConverter.toStructType(modelMetadata);
-            this.model = new SmileAdapter((Serializable) modelObj, schema);
-
-            log.info("✅ Model and Schema loaded successfully from Storage");
+            return new LoadedModel(model, schema, metadata);        
         } catch (Exception e) {
-                log.error("❌ Error loading schema from Storage: {}", e.getMessage(), e);
-                throw new RuntimeException("Failed to load schema from Storage.", e);
+            log.error("❌ Failed to load model {}: {}", modelId, e.getMessage(), e);
+            throw new RuntimeException("Could not load model: " + modelId, e);
         }
     }
 
-    public Object predict(Map<String, Object> featureMap) {
-        List<ModelMetadata.Feature> featureDefs = modelMetadata.features;
+    public Object predict(String modelId, Map<String, Object> features) {
+      
+        LoadedModel loadedModel = modelCache.computeIfAbsent(modelId, this::loadModel);
+
+        ModelMetadata metadata = loadedModel.metadata();
+        
+        List<ModelMetadata.Feature> featureDefs = metadata.features;
         double[] featureArray = new double[featureDefs.size()];
 
         for (int i = 0; i < featureDefs.size(); i++) {
             String featureName = featureDefs.get(i).name;
-            Object value = featureMap.get(featureName);
+            Object value = features.get(featureName);
 
             if (value == null) {
                 throw new IllegalArgumentException("Missing feature: " + featureName);
@@ -82,12 +89,12 @@ public class ModelService {
             }
         }
 
-        Object rawPrediction = model.predict(featureMap);
+        Object rawPrediction = loadedModel.model.predict(features);
 
         // Traduz o índice para classe nominal
-        if (rawPrediction instanceof Integer && modelMetadata.label != null && modelMetadata.label.classes != null) {
+        if (rawPrediction instanceof Integer && metadata.label != null && metadata.label.classes != null) {
             int index = (Integer) rawPrediction;
-            List<String> classes = modelMetadata.label.classes;
+            List<String> classes = metadata.label.classes;
             if (index >= 0 && index < classes.size()) {
                 return classes.get(index);
             }
