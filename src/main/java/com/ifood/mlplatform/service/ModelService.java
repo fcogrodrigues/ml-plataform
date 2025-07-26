@@ -2,8 +2,6 @@ package com.ifood.mlplatform.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import smile.data.Tuple;
-import smile.data.type.DataType;
 import smile.data.type.StructType;
 
 import org.springframework.stereotype.Service;

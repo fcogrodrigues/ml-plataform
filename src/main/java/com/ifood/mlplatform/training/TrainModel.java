@@ -4,7 +4,7 @@ import smile.data.DataFrame;
 import smile.data.formula.Formula;
 import smile.data.vector.IntVector;
 import smile.classification.RandomForest;
-import smile.io.CSV;
+import smile.io.Read;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -13,6 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+
+
+import org.apache.commons.csv.CSVFormat;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -36,14 +39,19 @@ public class TrainModel {
         log.info("Starting training job...");
         log.info("Reading data from={}", csvPath);
 
-        DataFrame data = new CSV().read(csvPath);
+        CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(false)
+                .build();
+
+        DataFrame data = Read.csv(csvPath, csvFormat);
 
         log.info("Columns found: ");
         for (String name : data.names()) {
             log.info(" - " + name);
         }
 
-        String labelColumn = "V5";
+        String labelColumn = "class";
         String[] species = data.stringVector(labelColumn).distinct().toArray(new String[0]);
         Map<String, Integer> speciesMap = new HashMap<>();
         for (int i = 0; i < species.length; i++) {
