@@ -2,19 +2,18 @@ package com.ifood.mlplatform.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import smile.data.Tuple;
+import smile.data.type.DataType;
 import smile.data.type.StructType;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ifood.mlplatform.model.Predictable;
 import com.ifood.mlplatform.model.dto.SmileAdapter;
 
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 @Service
@@ -24,45 +23,37 @@ public class ModelService {
     private Predictable model;
     private StructType schema;
 
+    // Assuming S3StorageService is a service to interact with S3 storage
+    private final StorageService storageService;
+    
+    public ModelService(StorageService storageService) {
+        this.storageService = storageService;
+    }
+
     @PostConstruct
     public void init() {
-        Path modelPath = Path.of("model/model.bin");
-        Path schemaPath = Path.of("model/schema.bin");
-
-        if (!Files.exists(modelPath)) {
-            throw new IllegalStateException("❌ model/model.bin not found. Run TrainModel before starting the API.");
-        }
-        if (!Files.exists(schemaPath)) {
-            throw new IllegalStateException("❌ model/schema.json not found. Run TrainModel before starting the API.");
-        }
-
-        try {
-            // Carregar o modelo serializado
-            Serializable loadedModel;
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(modelPath.toFile()))) {
-                Object obj = ois.readObject();
-                if (!(obj instanceof Serializable)) {
-                    throw new IllegalStateException("The loaded object is not Serializable.");
-                }
-                loadedModel = (Serializable) obj;
+        log.info("🔧 Loading from model and schema...");
+        try (
+            InputStream modelStream = storageService.download("model.bin");
+            ObjectInputStream modelOis = new ObjectInputStream(modelStream);
+            
+            InputStream schemaStream = storageService.download("schema.bin");
+            ObjectInputStream schemaOis = new ObjectInputStream(schemaStream)
+        ) {
+            Object modelObj = modelOis.readObject();
+            if (!(modelObj instanceof Serializable)) {
+                throw new IllegalStateException("The loaded model is not Serializable.");
             }
 
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(schemaPath.toFile()))) {
-                Object obj = ois.readObject();
-                if (!(obj instanceof StructType)) {
-                    throw new IllegalStateException("The loaded object is not a StructType schema.");
-                }
-                schema = (StructType) obj;
-            }
+            StructType schemaObj = (StructType) schemaOis.readObject();
+            this.schema = schemaObj;
 
-            // Inicializar o SmileAdapter com modelo e schema
-            this.model = new SmileAdapter(loadedModel, schema);
+            this.model = new SmileAdapter((Serializable) modelObj, schemaObj);
 
-            log.info("✅ Model loaded successfully from {}", modelPath.toAbsolutePath());
-            log.info("✅ Schema loaded successfully from {}", schemaPath.toAbsolutePath());
+            log.info("✅ Model and Schema loaded successfully from Storage");
         } catch (Exception e) {
-            log.error("❌ Error loading model or schema: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to load the model and schema.", e);
+                log.error("❌ Error loading schema from Storage: {}", e.getMessage(), e);
+                throw new RuntimeException("Failed to load schema from Storage.", e);
         }
     }
 

@@ -12,7 +12,7 @@
     <packaging>jar</packaging>
 
     <name>Mini ML Platform</name>
-    <description>Mini ML Platform for iFood ML Engineer Test</description>
+    <description>Mini ML Platform</description>
 
     <properties>
         <java.version>21</java.version>
@@ -50,11 +50,10 @@
             <version>2.6.0</version>
         </dependency>
 
-        <!-- AWS SDK (opcional) -->
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
-            <version>2.25.19</version>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
         </dependency>
 
         <!-- Jakarta Annotations -->
@@ -62,6 +61,11 @@
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
             <version>2.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.1</version>
         </dependency>
     </dependencies>
 
@@ -102,6 +106,14 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <configuration>
+                            <mainClass>com.ifood.mlplatform.training.TrainModel</mainClass>
+                        </configuration>
+                        </plugin>
                 </plugins>
             </build>
         </profile>

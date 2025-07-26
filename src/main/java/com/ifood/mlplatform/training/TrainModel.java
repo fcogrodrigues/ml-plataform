@@ -1,23 +1,30 @@
 package com.ifood.mlplatform.training;
 
-import smile.classification.RandomForest;
 import smile.data.DataFrame;
 import smile.data.formula.Formula;
-import smile.data.type.StructType;
-import smile.io.CSV;
 import smile.data.vector.IntVector;
+import smile.classification.RandomForest;
+import smile.io.CSV;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class TrainModel {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
-            System.err.println("Usage: java -jar mini-ml-platform-1.0.0-jar-with-dependencies.jar <path-to-csv>");
+            log.info("Usage: java -jar mini-ml-platform-1.0.0-jar-with-dependencies.jar <path-to-csv>");
             System.exit(1);
         }
 
@@ -26,14 +33,14 @@ public class TrainModel {
         if (!Files.exists(path)) {
             throw new IllegalStateException("❌ File data/iris.csv not found.");
         }
-        System.out.println("Starting training job...");
-        System.out.println("Reading data from: " +  csvPath);
+        log.info("Starting training job...");
+        log.info("Reading data from={}", csvPath);
 
         DataFrame data = new CSV().read(csvPath);
 
-        System.out.println("Columns found: ");
+        log.info("Columns found: ");
         for (String name : data.names()) {
-            System.out.println(" - " + name);
+            log.info(" - " + name);
         }
 
         String labelColumn = "V5";
@@ -51,34 +58,59 @@ public class TrainModel {
 
         data = data.drop(labelColumn).merge(IntVector.of(labelColumn, labels));
 
-        System.out.println("Label mapping applied: " + speciesMap);
+        log.info("Label mapping applied={}", speciesMap);
 
         Formula formula = Formula.lhs(labelColumn);
 
-        System.out.println("Starting model training with label column: " + labelColumn);
+        log.info("Starting model training with label column={}", labelColumn);
 
         RandomForest model = RandomForest.fit(formula, data);
 
-        System.out.println("Model training completed. Saving model...");
+        log.info("Model training completed. Saving model...");
 
-        Path modelDir = Path.of("model");
-        if (!Files.exists(modelDir)) {
-            Files.createDirectories(modelDir);
-        }
-
-        try (ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(modelDir.resolve("model.bin")))) {
+        // Serializar modelo
+        ByteArrayOutputStream modelBytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(modelBytes)) {
             oos.writeObject(model);
         }
-        
-        System.out.println("✅ Model saved to " + modelDir.resolve("model.bin").toAbsolutePath());
-        StructType schema = data.schema();
-        Path schemaPath = Path.of("model/schema.bin");
-        try (ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(schemaPath))) {
-            oos.writeObject(schema);
+
+        // Serializar schema
+        ByteArrayOutputStream schemaBytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(schemaBytes)) {
+            oos.writeObject(data.schema());
         }
 
-        System.out.println("✅ Model saved to " + modelDir.resolve("model.bin").toAbsolutePath());
-        System.out.println("✅ Schema saved to " + schemaPath.toAbsolutePath());
+        String bucketName = System.getenv().getOrDefault("BUCKET_NAME", "model");
+        String endpoint = System.getenv().getOrDefault("MINIO_ENDPOINT", "http://localhost:9000");
+        String accessKey = System.getenv().getOrDefault("MINIO_ACCESS_KEY", "admin");
+        String secretKey = System.getenv().getOrDefault("MINIO_SECRET_KEY", "admin123");
+
+        // Cria o cliente S3 apontando para MinIO
+        MinioClient minioClient = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
+
+        // Upload do modelo
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucketName)
+                .object("model.bin")
+                .stream(new ByteArrayInputStream(modelBytes.toByteArray()), modelBytes.size(), -1)
+                .contentType("application/octet-stream")
+                .build()
+        );
+
+        // Upload do schema
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucketName)
+                .object("schema.bin")
+                .stream(new ByteArrayInputStream(schemaBytes.toByteArray()), schemaBytes.size(), -1)
+                .contentType("application/octet-stream")
+                .build()
+        );
+        log.info("✅ Model and schema uploaded to bucket={}", bucketName);
         
     }
 }
