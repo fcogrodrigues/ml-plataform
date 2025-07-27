@@ -2,6 +2,8 @@ package com.ifood.mlplatform.service;
 
 import com.ifood.mlplatform.util.MetadataConverter;
 
+import com.ifood.mlplatform.exception.ModelNotFoundException;
+
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,7 @@ public class ModelService {
             InputStream modelStream = storage.download(modelId + "/model.bin");
             InputStream schemaStream = storage.download(modelId + "/schema.json");
         ) {
+
             ObjectInputStream modelOis = new ObjectInputStream(modelStream);
             Object modelObj = modelOis.readObject();
             if (!(modelObj instanceof Serializable)) {
@@ -58,8 +61,8 @@ public class ModelService {
 
             return new LoadedModel(model, schema, metadata);        
         } catch (Exception e) {
-            log.error("❌ Failed to load model {}: {}", modelId, e.getMessage(), e);
-            throw new RuntimeException("Could not load model: " + modelId, e);
+            log.error("❌ Failed to load model {}: {}", modelId, e.getMessage());
+            throw new ModelNotFoundException(modelId);
         }
     }
 

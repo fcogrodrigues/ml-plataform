@@ -6,6 +6,5 @@ import lombok.Getter;
 
 @Getter
 public class PredictionRequest {
-    private String modelId;
     private Map<String, Object> features;
 }
