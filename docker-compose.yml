@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile.api
     container_name: ml-api
     depends_on:
-      - minio-client
+      - minio
     environment:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: admin
@@ -50,6 +50,12 @@ services:
       BUCKET_NAME: model
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
     networks:
       - mlnet
 
@@ -58,6 +64,8 @@ services:
       context: .
       dockerfile: Dockerfile.trainer
     container_name: ml-trainer
+    depends_on:
+      - minio
     environment:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: admin
@@ -68,8 +76,32 @@ services:
     networks:
       - mlnet
 
+  test-e2e:
+    image: maven:3.9.6-eclipse-temurin-21
+    container_name: test-e2e
+    working_dir: /app
+    volumes:
+      - ./:/app
+    networks:
+      - mlnet
+    environment:
+      MODEL_ID: iris
+      RESTASSURED_BASE_URI: http://ml-api      # a API chamada pelo nome de serviço
+      RESTASSURED_PORT: 8080
+    entrypoint:
+      [
+        "sh", "-c",
+        "echo '⏳ Waiting for ml-api healthcheck…' && \
+         until curl -sSf http://ml-api:8080/actuator/health; do sleep 2; done && \
+         echo '✅ ml-api is up, running E2E tests' && \
+         mvn test --no-transfer-progress -Dtest=ModelApiE2ETest"
+      ]
+    tty: true
+    stdin_open: true
+
 volumes:
   minio_data:
 
 networks:
   mlnet:    
+    external: false

@@ -1,0 +1,5 @@
+FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY . .
+RUN mvn test-compile
+ENTRYPOINT ["mvn", "test", "-Dtest=ModelApiE2ETest"]

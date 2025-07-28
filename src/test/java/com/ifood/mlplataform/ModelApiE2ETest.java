@@ -9,12 +9,13 @@ import static org.hamcrest.Matchers.*;
 
 public class ModelApiE2ETest {
 
-    private final String MODEL_ID = "iris";
+    private static String MODEL_ID;
 
     @BeforeAll
     static void setup() {
-        RestAssured.baseURI = "http://localhost";
-        RestAssured.port = 8080;
+        RestAssured.baseURI = System.getenv().getOrDefault("RESTASSURED_BASE_URI", "http://localhost");
+        RestAssured.port    = Integer.parseInt(System.getenv().getOrDefault("RESTASSURED_PORT", "8080"));    
+        MODEL_ID = System.getenv().getOrDefault("MODEL_ID", "iris");
     }
 
     @Test
@@ -32,7 +33,7 @@ public class ModelApiE2ETest {
                 }
                 """)
         .when()
-            .post("/predict/" + MODEL_ID)
+            .post("/predict/{modelId}", MODEL_ID)
         .then()
             .statusCode(200)
             .body("prediction", equalTo("setosa"));
@@ -53,7 +54,7 @@ public class ModelApiE2ETest {
                 }
                 """)
         .when()
-            .post("/predict/nonexistent-model")
+            .post("/predict/{modelId}", "nonexistent-model")
         .then()
             .statusCode(404)
             .body("message", equalTo("Model not found: nonexistent-model"));
@@ -73,7 +74,7 @@ public class ModelApiE2ETest {
                 }
                 """) // petal_length está faltando
         .when()
-            .post("/predict/" + MODEL_ID)
+            .post("/predict/{modelId}", MODEL_ID)
         .then()
             .statusCode(400)
             .body("message", containsString("Missing feature: petal_length"));
@@ -94,7 +95,7 @@ public class ModelApiE2ETest {
                 }
                 """)
         .when()
-            .post("/predict/" + MODEL_ID)
+            .post("/predict/{modelId}", MODEL_ID)
         .then()
             .statusCode(400)
             .body("message", containsString("Invalid value for feature"));

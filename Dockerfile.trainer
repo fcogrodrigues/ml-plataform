@@ -16,7 +16,7 @@ FROM eclipse-temurin:21-jdk
 WORKDIR /app
 
 # Copia o JAR construído com dependências
-COPY --from=builder /app/target/mini-ml-platform-1.0.0-jar-with-dependencies.jar .
+COPY --from=builder /app/target/mini-ml-platform-1.0.0-jar-with-dependencies.jar ./trainer.jar
 
 COPY src/main/resources/data/ ./data/
 
@@ -24,7 +24,10 @@ COPY src/main/resources/data/ ./data/
 ENV BUCKET_NAME=model \
     MINIO_ENDPOINT=http://minio:9000 \
     MINIO_ACCESS_KEY=admin \
-    MINIO_SECRET_KEY=admin123
+    MINIO_SECRET_KEY=admin123 \
+    CSV_PATH="/data/iris.csv" \
+    SCHEMA_PATH="/data/schema.json" \
+    MODEL_ID="iris"
 
 # Comando padrão (pode ser sobrescrito com docker-compose ou linha de comando)
-ENTRYPOINT ["java", "-jar", "mini-ml-platform-1.0.0-jar-with-dependencies.jar"]
+ENTRYPOINT ["sh","-c","java -jar trainer.jar $CSV_PATH $SCHEMA_PATH $MODEL_ID"]
