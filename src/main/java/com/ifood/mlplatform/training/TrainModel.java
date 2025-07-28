@@ -12,10 +12,14 @@ import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Arrays;
 
 import org.apache.commons.csv.CSVFormat;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ifood.mlplatform.model.metadata.ModelMetadata;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -26,14 +30,14 @@ import lombok.extern.slf4j.Slf4j;
 public class TrainModel {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
+        if (args.length < 3) {
             log.info("Usage: java -jar mini-ml-platform.jar <path-to-csv> <path-to-schema.json> <model-id>");
             System.exit(1);
         }
 
-        String csvPath = args[0];
+        String csvPath =       args[0];
         String schemaPathStr = args[1];
-        String modelId = args[2]; 
+        String modelId =       args[2]; 
         Path csvFile = Path.of(csvPath);
         Path schemaPath = Path.of(schemaPathStr);
 
@@ -54,20 +58,30 @@ public class TrainModel {
 
         log.info("🧾 Columns found: {}", Arrays.toString(data.names()));
 
-        String labelColumn = "class";
-        String[] labelValues = data.stringVector(labelColumn).toArray();
-        String[] classes = Arrays.stream(labelValues).distinct().toArray(String[]::new);
+        ModelMetadata metadata = new ObjectMapper().readValue(Files.newInputStream(schemaPath), ModelMetadata.class);
+        String labelColumn = metadata.label.name;
 
-        Map<String, Integer> classToIndex = new HashMap<>();
+        String[] classes = metadata.label.classes.toArray(new String[0]);
+
+        String[] labelValues = data.stringVector(labelColumn).toArray();
+        Map<String,Integer> classToIndex = new LinkedHashMap<>();
         for (int i = 0; i < classes.length; i++) {
             classToIndex.put(classes[i], i);
         }
 
+        log.info("✅ Label mapping will follow metadata order: {}", classToIndex);
+
         int[] labelIndexes = Arrays.stream(labelValues)
-                .mapToInt(name -> classToIndex.get(name))
+                .mapToInt(name -> {
+                    Integer idx = classToIndex.get(name);
+                    if (idx == null) {
+                        throw new IllegalStateException("Unknown label '"+ name +"' not in metadata.classes");
+                    }
+                    return idx;
+                })
                 .toArray();
 
-        // Agora sobrescreva a coluna original com valores inteiros
+        // replace label column (drop + merge IntVector)
         data = data.drop(labelColumn).merge(IntVector.of(labelColumn, labelIndexes));
         log.info("✅ Label mapping applied: {}", classToIndex);
 

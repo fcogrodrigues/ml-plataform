@@ -9,7 +9,7 @@ import static org.hamcrest.Matchers.*;
 
 public class ModelApiE2ETest {
 
-    private final String MODEL_ID = "iris";
+    private final String MODEL_ID = "daise4";
 
     @BeforeAll
     static void setup() {
@@ -27,8 +27,7 @@ public class ModelApiE2ETest {
                     "sepal_length": 5.1,
                     "sepal_width": 3.5,
                     "petal_length": 1.4,
-                    "petal_width": 0.2,
-                    "class": 0
+                    "petal_width": 0.2
                   }
                 }
                 """)

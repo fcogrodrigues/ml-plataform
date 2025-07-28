@@ -65,17 +65,7 @@ public class ModelService {
     public Object predict(String modelId, Map<String, Object> features) {
      
         LoadedModel lm = modelCache.computeIfAbsent(modelId, this::loadModel);
+        return lm.adapter().predict(features);
 
-        Object prediction = lm.adapter().predict(features);
-
-        ModelMetadata md = lm.metadata();
-        
-        if (prediction instanceof Integer idx) {
-            var classes = md.label.classes;
-            if (idx >= 0 && idx < classes.size()) {
-                return classes.get(idx);
-            }
-        }
-        return prediction;    
     }
 }
