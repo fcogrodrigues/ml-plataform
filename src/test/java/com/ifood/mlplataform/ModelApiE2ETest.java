@@ -9,7 +9,7 @@ import static org.hamcrest.Matchers.*;
 
 public class ModelApiE2ETest {
 
-    private final String MODEL_ID = "daise4";
+    private final String MODEL_ID = "iris";
 
     @BeforeAll
     static void setup() {

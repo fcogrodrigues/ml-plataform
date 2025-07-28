@@ -63,6 +63,8 @@ services:
       MINIO_ACCESS_KEY: admin
       MINIO_SECRET_KEY: admin123
       BUCKET_NAME: model
+    volumes:
+      -  ./src/main/resources/data:/data
     networks:
       - mlnet
 
