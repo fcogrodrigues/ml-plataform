@@ -5,8 +5,7 @@
     { "name": "sepal_length", "type": "double" },
     { "name": "sepal_width", "type": "double" },
     { "name": "petal_length", "type": "double" },
-    { "name": "petal_width", "type": "double" },
-    { "name": "class", "type": "integer" }
+    { "name": "petal_width", "type": "double" }
   ],
   "label": {
     "name": "class",

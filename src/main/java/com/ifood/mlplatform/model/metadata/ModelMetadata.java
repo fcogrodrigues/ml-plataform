@@ -10,7 +10,7 @@ public class ModelMetadata {
 
     public static class Feature {
         public String name;
-        public String type; // e.g., "double", "categorical"
+        public String type; // "double", "categorical"
         public List<String> categories; // only for categorical
     }
 
