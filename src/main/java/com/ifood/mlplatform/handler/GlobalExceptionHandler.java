@@ -6,8 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import com.ifood.mlplatform.exception.ModelNotFoundException;
+import com.ifood.mlplatform.exception.StorageException;
 
 import java.util.Map;
 
@@ -44,9 +46,16 @@ public class GlobalExceptionHandler {
             .body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleStorage(MethodArgumentNotValidException ex) {
+        log.warn("⚠️ Invalid request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                             .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StorageException.class)
     public ResponseEntity<Map<String, String>> handleStorage(StorageException ex) {
-        // 503 serviço indisponível, pois é um problema externo (MinIO/S3)
+        log.warn("❌ Invalid request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                              .body(Map.of("message", ex.getMessage()));
     }

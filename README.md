@@ -295,6 +295,8 @@ Why this matters:
 
 - 🚫 **Distributed Cache** not included in this MVP; these can be added later for Redis use
 
+- 🚫 **Unit Tests or coverage tests** not included fully in this MVP; Anyway, the main E2E tests are avaiable.
+
 ---
 
 ## 📦 AWS Architecture proposal
