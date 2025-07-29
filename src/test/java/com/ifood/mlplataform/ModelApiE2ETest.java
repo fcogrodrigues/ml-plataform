@@ -14,8 +14,8 @@ public class ModelApiE2ETest {
     @BeforeAll
     static void setup() {
         RestAssured.baseURI = System.getenv().getOrDefault("RESTASSURED_BASE_URI", "http://localhost");
-        RestAssured.port    = Integer.parseInt(System.getenv().getOrDefault("RESTASSURED_PORT", "8080"));    
-        MODEL_ID = System.getenv().getOrDefault("MODEL_ID", "iris");
+        RestAssured.port    = Integer.parseInt(System.getenv().getOrDefault("RESTASSURED_PORT", "8080"));
+        MODEL_ID            = System.getenv().getOrDefault("MODEL_ID", "iris");
     }
 
     @Test
@@ -45,12 +45,12 @@ public class ModelApiE2ETest {
             .contentType("application/json")
             .body("""
                 {
-                    "features": {
-                        "sepal_length": 5.1,
-                        "sepal_width": 3.5,
-                        "petal_length": 1.4,
-                        "petal_width": 0.2
-                    }
+                  "features": {
+                    "sepal_length": 5.1,
+                    "sepal_width": 3.5,
+                    "petal_length": 1.4,
+                    "petal_width": 0.2
+                  }
                 }
                 """)
         .when()
@@ -66,13 +66,13 @@ public class ModelApiE2ETest {
             .contentType("application/json")
             .body("""
                 {
-                    "features": {
-                        "sepal_length": 5.1,
-                        "sepal_width": 3.5,
-                        "petal_width": 0.2
-                    }
+                  "features": {
+                    "sepal_length": 5.1,
+                    "sepal_width": 3.5,
+                    "petal_width": 0.2
+                  }
                 }
-                """) // petal_length está faltando
+                """)
         .when()
             .post("/predict/{modelId}", MODEL_ID)
         .then()
@@ -86,12 +86,12 @@ public class ModelApiE2ETest {
             .contentType("application/json")
             .body("""
                 {
-                    "features": {
-                        "sepal_length": "abc",
-                        "sepal_width": 3.5,
-                        "petal_length": 1.4,
-                        "petal_width": 0.2
-                    }
+                  "features": {
+                    "sepal_length": "abc",
+                    "sepal_width": 3.5,
+                    "petal_length": 1.4,
+                    "petal_width": 0.2
+                  }
                 }
                 """)
         .when()
@@ -101,5 +101,62 @@ public class ModelApiE2ETest {
             .body("message", containsString("Invalid value for feature"));
     }
 
+    @Test
+    void testEmptyFeaturesMap() {
+        given()
+            .contentType("application/json")
+            .body("""
+                { "features": {} }
+                """)
+        .when()
+            .post("/predict/{modelId}", MODEL_ID)
+        .then()
+            .statusCode(400)
+            .body("message", containsString("Missing feature"));
+    }
 
+    @Test
+    void testMalformedJson() {
+        given()
+            .contentType("application/json")
+            .body("{ this is not valid JSON }")
+        .when()
+            .post("/predict/{modelId}", MODEL_ID)
+        .then()
+            .statusCode(400);
+    }
+
+    @Test
+    void testUnsupportedMediaType() {
+        given()
+            .contentType("text/plain")
+            .body("just plain text")
+        .when()
+            .post("/predict/{modelId}", MODEL_ID)
+        .then()
+            .statusCode(415);
+    }
+
+    @Test
+    void testExtraUnknownFieldIgnored() {
+        given()
+            .contentType("application/json")
+            .body("""
+                {
+                  "features": {
+                    "sepal_length": 5.1,
+                    "sepal_width": 3.5,
+                    "petal_length": 1.4,
+                    "petal_width": 0.2,
+                    "foo_bar": 123
+                  }
+                }
+                """)
+        .when()
+            .post("/predict/{modelId}", MODEL_ID)
+        .then()
+            // extra fields should be ignored; still a valid prediction
+            .statusCode(200)
+            .body("prediction", equalTo("setosa"));
+    }
 }

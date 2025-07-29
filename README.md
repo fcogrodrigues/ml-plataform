@@ -149,16 +149,20 @@ Responses
 - **400 Bad Request** - missing feature or invalid value
 
 ```bash
-{ "message": "Missing feature: petal_width" }
+{ 
+  "message": "Missing feature: petal_width" 
+}
 ```
 
 - **404 Not Found** – unknown modelId
 
 ```bash
-{ "message": "Model not found: unknown-model" }
+{ 
+  "message": "Model not found: unknown-model" 
+}
 ```
 
-**Important**: Other errors were not implemented due to time constraints, but any additional error can be easily handled using the error handler.
+*Additional error types can be added via the global exception handler.*
 
 ## 🎨 Architecture & Design Decisions
 
@@ -338,11 +342,11 @@ Why this matters:
 
   - **EventBridge & Lambda**:
 
-    - **Decoupled**, event‑driven triggers for on‑demand or scheduled training.
+    - **Decoupled**, event‑driven triggers for on‑demand (cost-eficient) or scheduled training.
 
   - **CodePipeline / CodeBuild / ECR / CodeDeploy**:
 
-    - **Automated CI/CD** for both API and Trainer, with testing & version control.
+    - **Automated CI/CD** for both API and Trainer, with testing & version control. This ensure 
 
   - **CloudWatch**: unified logging, metrics, alarms for both API & cache
 
