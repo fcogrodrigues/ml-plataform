@@ -44,6 +44,13 @@ public class GlobalExceptionHandler {
             .body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<Map<String, String>> handleStorage(StorageException ex) {
+        // 503 serviço indisponível, pois é um problema externo (MinIO/S3)
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                             .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnknown(Exception ex) {
         log.error("❌ Unexpected error: {}", ex.getMessage(), ex);

@@ -154,11 +154,43 @@ Responses
 }
 ```
 
+- **400 Bad Request** - Malformed JSON
+
+```bash
+{ 
+  "message": "message": "Malformed JSON request"
+}
+```
+
 - **404 Not Found** – unknown modelId
 
 ```bash
 { 
   "message": "Model not found: unknown-model" 
+}
+```
+
+- **415 Unsupported Content-Type** – Unsupported Content-Type (e.g. not JSON)
+
+```bash
+{ 
+  "message": "message": "Content type 'text/plain' not supported"
+}
+```
+
+- **503 Service Unavaiable** – Service Unavaiable
+
+```bash
+{ 
+  "message": "message": "Failed to load key: iris/model.bin"
+}
+```
+
+- **500 Unexpected server error** – Unexpected server error
+
+```bash
+{ 
+  "message": "Unexpected error occurred"
 }
 ```
 
@@ -251,8 +283,6 @@ A global exception handler is implemented to catch and format errors consistentl
 Why this matters:
 
 - ✅ Provides uniform and descriptive error responses
-  - `400 Bad Request` for invalid client input
-  - `404 Not Found` when a given modelId does not exist
 - ✅ Keeps controller code clean and free of boilerplate
 
 ⚠️ Trade-off: Due to time constraints, not all possible exception types were implemented. However, the error-handling structure is extensible and ready to support additional scenarios with minimal effort.
@@ -262,6 +292,8 @@ Why this matters:
 - 🚫 **Authentication/Authorization** was not implemented for this MVP.
 
 - 🚫 **Logs, Monitoring and Metrics** not included in this MVP; these can be added later for **operational observability**.
+
+- 🚫 **Distributed Cache** not included in this MVP; these can be added later for Redis use
 
 ---
 
@@ -409,4 +441,4 @@ passwd: "not the passwordaacrB"
 
 ### level03
 
-the challenger was too much, but is a technique to use a buffer overflow as vulnerability to call a hidden function
+Tthe challenger was not done, but is a technique to use a buffer overflow to exploit a vulnerability to call a hidden (crazy) function.

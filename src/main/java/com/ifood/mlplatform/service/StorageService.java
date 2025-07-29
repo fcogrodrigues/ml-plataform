@@ -3,78 +3,73 @@ package com.ifood.mlplatform.service;
 import io.minio.MinioClient;
 import io.minio.GetObjectArgs;
 import io.minio.PutObjectArgs;
+import io.minio.StatObjectArgs;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.ifood.mlplatform.exception.StorageException;
 
-import jakarta.annotation.PostConstruct;
-
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class StorageService {
+
+    private final MinioClient minioClient;
 
     @Value("${BUCKET_NAME}")
     private String bucket;
 
-    @Value("${MINIO_ENDPOINT}")
-    private String endpoint;
-
-    @Value("${MINIO_ACCESS_KEY}")
-    private String accessKey;
-
-    @Value("${MINIO_SECRET_KEY}")
-    private String secretKey;
-
-    private MinioClient minioClient;
-
-    @PostConstruct
-    public void init() {
-        log.info("🔧 MinIO Config -> endpoint={}, bucket={}, accessKey={}", endpoint, bucket, accessKey);
-        try {
-            this.minioClient = MinioClient.builder()
-                    .endpoint(endpoint)
-                    .credentials(accessKey, secretKey)
-                    .build();
-            log.info("✅ MinIO client initialized.");
-        } catch (Exception e) {
-            log.error("❌ Failed to initialize MinIO client: {}", e.getMessage(), e);
-            throw new RuntimeException("MinIO initialization error", e);
+    public void upload(String objectName, Path filePath) {
+        try (InputStream is = Files.newInputStream(filePath)) {
+            long size = Files.size(filePath);
+            upload(objectName, is, size, "application/octet-stream");
+            log.info("✅ Uploaded file `{}` as `{}`", filePath, objectName);
+        } catch (IOException e) {
+            log.error("❌ Failed to read file `{}`: {}", filePath, e.getMessage(), e);
+            throw new StorageException("Could not read file for upload: " + filePath, e);
         }
     }
 
-    public void upload(String key, Path filePath) {
-        try (InputStream is = Files.newInputStream(filePath)) {
+    public void upload(String objectName, InputStream stream, long size, String contentType) {
+        try {
             minioClient.putObject(
                 PutObjectArgs.builder()
                     .bucket(bucket)
-                    .object(key)
-                    .stream(is, Files.size(filePath), -1)
-                    .contentType("application/octet-stream")
+                    .object(objectName)
+                    .stream(stream, size, -1)
+                    .contentType(contentType)
                     .build()
             );
-            log.info("✅ Uploaded {} to s3://{}/{}", filePath, bucket, key);
+            log.info("✅ Uploaded stream as `{}` ({} bytes)", objectName, size);
         } catch (Exception e) {
-            log.error("❌ Upload failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Upload error", e);
+            log.error("❌ Upload of `{}` failed: {}", objectName, e.getMessage(), e);
+            throw new StorageException("Failed to upload object: " + objectName, e);
         }
     }
 
-    public InputStream download(String key) {
+    public InputStream download(String objectName) {
         try {
-            log.info("⬇️ Downloading s3://{}/{}", bucket, key);
+            // optional: verify existence
+            minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .build());
+            log.info("⬇️ Downloading `{}`", objectName);
             return minioClient.getObject(
                 GetObjectArgs.builder()
                     .bucket(bucket)
-                    .object(key)
+                    .object(objectName)
                     .build()
             );
         } catch (Exception e) {
-            log.error("❌ Download failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Download error", e);
+            log.error("❌ Download of `{}` failed: {}", objectName, e.getMessage(), e);
+            throw new StorageException("Failed to download object: " + objectName, e);
         }
     }
 }

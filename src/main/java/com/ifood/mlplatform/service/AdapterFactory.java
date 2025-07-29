@@ -18,14 +18,19 @@ public class AdapterFactory {
     private final Map<String, ModelAdapter> cache = new ConcurrentHashMap<>();
 
     public ModelAdapter getAdapter(ModelMetadata metadata) {
+
+        String raw = metadata.framework;
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("metadata.framework must be provided");
+        }
+
         String framework = metadata.framework.toUpperCase(Locale.ROOT);
 
-        return cache.computeIfAbsent(framework, fw -> adapters
-                    .stream()
+        return cache.computeIfAbsent(framework, fw -> adapters.stream()
                     .filter(a -> a.supports(metadata))
                     .findFirst()
                     .orElseThrow(() -> 
-                        new IllegalStateException("No adapter for framework " + fw)
+                        new IllegalStateException("No adapter found for framework " + fw)
                     )
         );
     }
