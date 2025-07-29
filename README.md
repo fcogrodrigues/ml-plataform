@@ -230,7 +230,6 @@ This uniform contract allows:
 
 ⚠️ Trade off: While the current implementation returns a single prediction (scalar or class), this method could be extended to return richer payloads—such as multiple outputs or probabilities—in alignment with a more generic `metadata` schema as described in section 1️⃣.
 
-
 ### 4️⃣ In‑Memory Model Cache
 
 Once a model is loaded (from bucket), it’s held in a cache (`ConcurrentHashMap`) keyed by modelId, so subsequent calls reuse the same object.
