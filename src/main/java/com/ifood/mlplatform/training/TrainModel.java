@@ -129,6 +129,7 @@ public class TrainModel {
         );
        
         log.info("🎉 Training and upload process completed successfully.");
+        System.exit(0);
     }
 
 }

@@ -75,6 +75,10 @@ services:
       -  ./src/main/resources/data:/data
     networks:
       - mlnet
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exit 0"]
+      interval: 1s
+      retries: 1
 
   test-e2e:
     image: maven:3.9.6-eclipse-temurin-21
@@ -96,8 +100,6 @@ services:
          echo '✅ ml-api is up, running E2E tests' && \
          mvn test --no-transfer-progress -Dtest=ModelApiE2ETest"
       ]
-    tty: true
-    stdin_open: true
 
 volumes:
   minio_data:
