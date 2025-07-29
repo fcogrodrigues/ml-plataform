@@ -1,83 +1,83 @@
-# 🪙 Mini ML Plataform
+# Mini ML Plataform
 
 Automated pipeline for training and serving machine learning models via REST API
 
 ## 🚀 Features
 
-✅ Train models on arbitrary CSV data (example: Iris dataset)
+- ✅ Train models on arbitrary CSV data (example: Iris dataset)
 
-✅ Upload trained model and schema metadata to S3-compatible storage (MinIO)
+- ✅ Upload trained model and schema metadata to S3-compatible storage (MinIO)
 
-✅ Dynamically load and serve multiple models by modelId
+- ✅ Dynamically load and serve multiple models by `modelId`
 
-✅ Generic API (/predict/{modelId}) for scoring new observations
+- ✅ Generic API `POST (/predict/{modelId})` for scoring new observations
 
-✅ Automatic schema validation and feature parsing
+- ✅ Automatic schema validation and feature parsing
 
-✅ End-to-end integration tests (JUnit + RestAssured)
+- ✅ End-to-end integration tests (JUnit + RestAssured)
 
-✅ Swagger/OpenAPI UI for interactive API exploration
+- ✅ Swagger/OpenAPI UI for interactive API exploration
 
 ---
 
 ## ⚙️ Tech Stack
 
-- Java 21, Spring Boot 3.x
+- **Java 21**, Spring Boot 3.x
 
-- Smile machine learning framework
+- **Smile** machine learning framework (for trainer and predictions)
 
-- MinIO (S3-compatible storage) via io.minio SDK
+- **MinIO** (local S3-compatible storage)
 
-- JUnit 5, RestAssured for E2E tests
+- **JUnit 5**, **RestAssured** for E2E tests
 
-- Maven + Docker + Docker Compose
+- **Maven** + **Docker** + **Docker Compose**
 
 ---
 
 ## 📂 Requirements
 
-To build and run this Wallet Service locally, you need:
+To build and run locally, you need:
 
-✅ **Java 21** [Download](https://www.oracle.com/java/technologies/downloads/#java21)
+- ✅ **Java 21** [Download](https://www.oracle.com/java/technologies/downloads/#java21)
 
-✅ **Maven 3.8+** [Download](https://maven.apache.org/download.cgi)
+- ✅ **Maven 3.9+** [Download](https://maven.apache.org/download.cgi)
 
-✅ **Docker** [Download](https://www.docker.com/products/docker-desktop/)
+- ✅ **Docker** [Download](https://www.docker.com/products/docker-desktop/)
 
 ---
 
 ## 🛠️ Quick Start
 
-The `docker-compose.yml` orchestrates:
+The provided `docker-compose.yml` will orchestrate:
 
-1. MinIO (Storage)
+1. **MinIO** (Storage)
 
-2. API service (ML Platform)
+2. **ML API** service
 
-3. Model Trainer
+3. **Model Trainer**
 
-4. E2E test runner
+4. **E2E test runner**
 
-1️⃣ Clone and enter project
+### 1️⃣ Clone & enter project
 
 ```bash
 git clone https://github.com/fcogrodrigues/ml-platform.git
 cd ml-platform
 ```
 
-2️⃣ Bring up Storage + API + Trainer + E2E Tests
+### 2️⃣ Build & Run Everything
 
 ```bash
 docker-compose up --build
 ```
 
-MinIO (S3‑compatible storage) will be available at `http://localhost:9001` (console).
+API `http://localhost:8080`
 
-API available at `http://localhost:8080`
+Swagger UI `http://localhost:8080/swagger-ui/index.html`
 
-Swagger UI at `http://localhost:8080/swagger-ui/index.html`
+MinIO console `http://localhost:9001`
 
-After startup, the iris model is automatically trained (via ml-trainer) and uploaded under `iris/` key in bucket; you can then call the iris endpoint.
+On startup, the iris model is automatically trained, uploaded under key `iris/` and ready to query.
 
 ```bash
 curl -X POST http://localhost:8080/predict/iris \
@@ -94,9 +94,9 @@ curl -X POST http://localhost:8080/predict/iris \
 
 ---
 
-🔄 Rebuild & run trainer only
+### 🔄 Rebuild & Ru trainer Only
 
-This executes `ml-trainer` with news parameters for training new models if desired. Publish the new model in bucket `/model/new_model/...`.
+To train a new model with custom parameters:
 
 ```bash
 docker-compose run --rm \
@@ -106,7 +106,7 @@ docker-compose run --rm \
   ml-trainer
 ```
 
-The Storage will be:
+This sabes to Storage:
 
 ```plaintext
 model/
@@ -115,11 +115,13 @@ model/
 │   ├── schema.json
 ```
 
+---
+
 ## 📝 API Endpoints
 
 ### POST /predict/{modelId}
 
-Score a batch of features against the named model ID
+Score a set of features against the named model.
 
 ```bash
 curl -X POST http://localhost:8080/predict/iris \
@@ -159,20 +161,6 @@ Responses
 **Important**: Other errors were not implemented due to time constraints, but any additional error can be easily handled using the error handler.
 
 ## 🎨 Architecture & Design Decisions
-
-### 🚀 Summary
-
-Generic Predictable interface for pluggable adapters
-
-ModelMetadata JSON defines features, types and class labels
-
-AdapterFactory selects correct adapter by framework field
-
-MetadataConverter builds Smile StructType schema from metadata ()
-
-Concurrent cache for loaded models, avoids reload overhead
-
-Docker Compose used for CI/CD-like local pipeline orchestration
 
 ### 1️⃣ Generic, JSON‑based Model Metadata
 
@@ -220,7 +208,7 @@ Object predict(Map<String, Object> features);
 
 This uniform contract allows:
 
-- Support for arbitrary feature sets (numerical, categorical, text),
+- Support for arbitrary feature sets (numerical, categorical [not in this MVP], text etc),
 
 - Decoupling the prediction logic from the controller/service layer,
 
@@ -236,7 +224,7 @@ Once a model is loaded (from bucket), it’s held in a cache (`ConcurrentHashMap
 
 Minimizes I/O and deserialization overhead under load, improving throughput and reducing latency.
 
-### 6️⃣ MinIO for Artifact Storage
+### 6️⃣ Bucket for Artifact Storage
 
 Models (`model.bin`) and metadata (`schema.json`) are stored in an S3-compatible bucket served by MinIO (running locally via Docker Compose), simulating AWS S3 behavior.
 
@@ -277,13 +265,13 @@ Why this matters:
 
 ### API Service Pipeline
 
-  1. Developer pushes code (GitHub)→ **AWS CodePipeline**
+  1. Developer pushes code (GitHub) → **AWS CodePipeline**
 
   2. **CodePipeline**
 
       - Invokes **CodeBuild** to build & test the ML API container image
 
-      - On success, **CodeDeploy** pushes the image to **ECR** and updates the running service on **ECS  (Fargate)/EKS**
+      - On success, **CodeDeploy** pushes the image to **ECR** and updates the running service on **ECS  (Fargate)/EKS** and ensures the Redis cluster is in place.
 
   4. **API Gateway**
 
@@ -293,17 +281,25 @@ Why this matters:
 
       - Serves `/predict/{modelId}`
 
-      - Dynamically loads model + schema from **S3** via the `ModelService`
+      - **At request time**, first checks **Redis cache (ElastiCache)** for:
+
+        - Serialized schema & model metadata
+
+        - Recent predictions (optional)
+
+      - Falls back to **S3** if cache miss, and populates **Redis** for subsequent calls.
 
   6. **CloudWatch**
 
-      - Collects logs, metrics, and alarms from the API containers
+      - Collects logs and metrics from the API containers and Redis cluster.
+
+      - Alarms on high latency, error rates or cache miss spikes.
 
 ### Training Service Pipeline
 
-  1. EventBridge (scheduled rule or manual trigger)
+  1. EventBridge (cron scheduled or manual trigger)
 
-      - Fires on a cron or via console/API to start retraining
+      - fires an event when (re)training is desired.
 
   2. **Lambda**
 
@@ -319,14 +315,36 @@ Why this matters:
 
       - Trains a model, serializes the model + updated `schema.json`
 
-      - Uploads artifacts to **S3** under `<modelId>/model.bin` (can also .pmml ou .onnx in na future version) and `<modelId>/schema.json`
+      - Uploads artifacts to **S3** under `<modelId>/model.bin` (can also .pmml ou .onnx in na future version) and `<modelId>/schema.json`. Invalidate cache on Redis.
 
   4. **ModelService**
 
-      - On next prediction request, automatically picks up the new version from S3
+      - On the next prediction request, sees the cache miss (invalidated), reloads the fresh model + schema from S3, and repopulates Redis.
 
   5. **CloudWatch**
       - Collects logs, metrics, and alarms from the trainer jobs
+
+### Why Each Component?
+
+  - **API Gateway**: uniform ingress, auth, throttling, easy domain management.
+
+  - **ECS/EKS (Fargate)**: auto‑scaling, no server management, pay‑per‑use.
+
+  - **ElastiCache Redis**:
+
+    - **Low‑latency** access to model metadata & hot predictions.
+
+    - **Cache invalidation** on retraining keeps API lightweight.
+
+  - **EventBridge & Lambda**:
+
+    - **Decoupled**, event‑driven triggers for on‑demand or scheduled training.
+
+  - **CodePipeline / CodeBuild / ECR / CodeDeploy**:
+
+    - **Automated CI/CD** for both API and Trainer, with testing & version control.
+
+  - **CloudWatch**: unified logging, metrics, alarms for both API & cache
 
 ---
 
@@ -337,24 +355,22 @@ mini-ml-platform/
 ├── src/
 │   ├── main/java/com/ifood/mlplatform/
 │   │   ├── controller/       # REST endpoints
-│   │   ├── model/            # Metadata & adapter interfaces & API request/response models
 |   |   ├── exception         # Clean error handling
-│   │   ├── service/          # Storage, ModelService
+│   │   ├── model/            # Metadata & adapter interfaces
+│   │   ├── service/          # StorageService, ModelService
 │   │   ├── training/         # TrainModel CLI
-│   │   ├── util/             # Utilities (metadata converter)
-│   │   └── MiniMlPlatformApplication.java
+│   │   ├── util/             # Metadata Converter
 │   └── resources/
-│       ├── data/iris.csv
-│       └── data/schema.json
+│       └── data/             # iris.csv, schema.json
 ├── docker-compose.yml
 ├── Dockerfile.api
-├── Dockerfile.test-e2e
 ├── Dockerfile.trainer
+├── Dockerfile.test-e2e
 ├── pom.xml
 └── README.md
 ```
 
-### 🧩 Explanation of Structure
+### 📂 Explanation of Structure
 
 - **controller/** – Defines REST endpoints, delegating business logic to services.
 - **model/** – Domain entities encapsulating business rules and request/response contracts.
@@ -372,3 +388,21 @@ mini-ml-platform/
 Feel free to contact for clarifications or contributions.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/fcorodrigues/)
+
+## BONUS!!!
+
+### level01
+
+```bash
+passwd: "1F00d{P1c3_0f_C4k3}"
+```
+
+### level02
+
+```bash
+passwd: "not the passwordaacrB"
+```
+
+### level03
+
+the challenger was too much, but is a technique to use a buffer overflow as vulnerability to call a hidden function
