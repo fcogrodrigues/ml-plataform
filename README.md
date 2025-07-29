@@ -259,8 +259,8 @@ A global exception handler is implemented to catch and format errors consistentl
 Why this matters:
 
 - ✅ Provides uniform and descriptive error responses
-  – `400 Bad Request` for invalid client input
-  – `404 Not Found` when a given modelId does not exist
+  - `400 Bad Request` for invalid client input
+  - `404 Not Found` when a given modelId does not exist
 - ✅ Keeps controller code clean and free of boilerplate
 
 ⚠️ Trade-off: Due to time constraints, not all possible exception types were implemented. However, the error-handling structure is extensible and ready to support additional scenarios with minimal effort.
@@ -270,6 +270,63 @@ Why this matters:
 - 🚫 **Authentication/Authorization** was not implemented for this MVP.
 
 - 🚫 **Logs, Monitoring and Metrics** not included in this MVP; these can be added later for **operational observability**.
+
+---
+
+## 📦 AWS Architecture proposal
+
+### API Service Pipeline
+
+  1. Developer pushes code (GitHub)→ **AWS CodePipeline**
+
+  2. **CodePipeline**
+
+      - Invokes **CodeBuild** to build & test the ML API container image
+
+      - On success, **CodeDeploy** pushes the image to **ECR** and updates the running service on **ECS  (Fargate)/EKS**
+
+  4. **API Gateway**
+
+      - Fronts the ML API service for routing, authentication, and rate‑limiting
+
+  5. **ML API Service** (ECS/EKS)
+
+      - Serves `/predict/{modelId}`
+
+      - Dynamically loads model + schema from **S3** via the `ModelService`
+
+  6. **CloudWatch**
+
+      - Collects logs, metrics, and alarms from the API containers
+
+### Training Service Pipeline
+
+  1. EventBridge (scheduled rule or manual trigger)
+
+      - Fires on a cron or via console/API to start retraining
+
+  2. **Lambda**
+
+      - Receives the **EventBridge** event
+
+      - Calls **ECS (Fargate)** to launch a Trainer task
+
+  3. **Fargate Trainer Task**
+
+      - Runs the trainer job inside a container (docker)
+
+      - Reads raw (dataset) data (e.g. from S3, RDS, databricks, etc.) and the corresponding `schema.json`
+
+      - Trains a model, serializes the model + updated `schema.json`
+
+      - Uploads artifacts to **S3** under `<modelId>/model.bin` (can also .pmml ou .onnx in na future version) and `<modelId>/schema.json`
+
+  4. **ModelService**
+
+      - On next prediction request, automatically picks up the new version from S3
+
+  5. **CloudWatch**
+      - Collects logs, metrics, and alarms from the trainer jobs
 
 ---
 
