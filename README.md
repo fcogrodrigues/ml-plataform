@@ -106,7 +106,7 @@ docker-compose run --rm \
   ml-trainer
 ```
 
-This sabes to Storage:
+This saves to Storage:
 
 ```plaintext
 model/
@@ -443,4 +443,4 @@ passwd: "not the passwordaacrB"
 
 ### level03
 
-Tthe challenger was not done, but is a technique to use a buffer overflow to exploit a vulnerability to call a hidden (crazy) function.
+The challenger was not done, but is a technique to use a buffer overflow to exploit a vulnerability to call a hidden (crazy) function.
