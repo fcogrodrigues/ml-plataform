@@ -158,7 +158,7 @@ Responses
 
 ```bash
 { 
-  "message": "message": "Malformed JSON request"
+  "message": "Malformed JSON request"
 }
 ```
 
