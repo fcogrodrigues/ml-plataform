@@ -380,7 +380,7 @@ Why this matters:
 
   - **CodePipeline / CodeBuild / ECR / CodeDeploy**:
 
-    - **Automated CI/CD** for both API and Trainer, with testing & version control. This ensure 
+    - **Automated CI/CD** for both API and Trainer, with testing & version control.
 
   - **CloudWatch**: unified logging, metrics, alarms for both API & cache
 
